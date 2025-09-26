@@ -7,4 +7,5 @@ alwaysApply: true
 - The app should be UI-less. DO NOT implement any MainActivity
 - Run 'JAVA_HOME="/Library/Java/JavaVirtualMachines/zulu-21.jdk/Contents/Home' before running any build command
 - Do NOT implement tests
+- Do NOT deploy firebase functions
 
