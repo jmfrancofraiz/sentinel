@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sentinel</string>
+    <string name="accessibility_service_description">Sentinel Safety Monitor - Monitors WhatsApp contact interactions for safety purposes</string>
+    
+    <!-- Logging Messages -->
+    <string name="log_contact_detected">Contact detected: %1$s</string>
+    <string name="log_service_started">Sentinel monitoring service started</string>
+    <string name="log_service_stopped">Sentinel monitoring service stopped</string>
+    <string name="log_whatsapp_detected">WhatsApp detected, starting monitoring</string>
+    <string name="log_chat_screen_detected">Chat screen detected, scanning for contact</string>
+    
+    <!-- Error Messages -->
+    <string name="error_model_loading">Failed to load LLM model</string>
+    <string name="error_accessibility_permission">Accessibility permission required</string>
+    <string name="error_service_start">Failed to start monitoring service</string>
+    <string name="error_contact_detection">Contact detection failed</string>
+</resources>
