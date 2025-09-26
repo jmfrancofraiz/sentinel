@@ -87,23 +87,29 @@ public class FirebaseService {
                 data.put("createdAt", System.currentTimeMillis());
                 data.put("deviceId", getDeviceId());
                 data.put("appVersion", getAppVersion());
+                data.put("userId", authService.getCurrentUserId());
+                data.put("userEmail", authService.getCurrentUser() != null ? 
+                    authService.getCurrentUser().getEmail() : "unknown");
                 
                 // Get collection name from config
                 String collectionName = getCollectionName();
+                String userId = authService.getCurrentUserId();
                 
-                // Store in Firestore
+                // Store in Firestore subcollection: whatsapp/{userId}/conversations/{conversationId}
                 firestore.collection(collectionName)
+                    .document(userId)
+                    .collection("conversations")
                     .add(data)
                     .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
                         @Override
                         public void onSuccess(DocumentReference documentReference) {
-                            Log.d(TAG, "Conversation stored successfully with ID: " + documentReference.getId());
+                            Log.d(TAG, "Conversation stored successfully in subcollection with ID: " + documentReference.getId());
                         }
                     })
                     .addOnFailureListener(new OnFailureListener() {
                         @Override
                         public void onFailure(Exception e) {
-                            Log.e(TAG, "Error storing conversation", e);
+                            Log.e(TAG, "Error storing conversation in subcollection", e);
                         }
                     });
                     
@@ -145,6 +151,7 @@ public class FirebaseService {
                 WriteBatch batch = firestore.batch();
                 
                 String collectionName = getCollectionName();
+                String userId = authService.getCurrentUserId();
                 
                 for (JSONObject conversationData : conversations) {
                     Map<String, Object> data = jsonToMap(conversationData);
@@ -153,12 +160,15 @@ public class FirebaseService {
                     data.put("createdAt", System.currentTimeMillis());
                     data.put("deviceId", getDeviceId());
                     data.put("appVersion", getAppVersion());
-                    data.put("userId", authService.getCurrentUserId());
+                    data.put("userId", userId);
                     data.put("userEmail", authService.getCurrentUser() != null ? 
                         authService.getCurrentUser().getEmail() : "unknown");
                     
-                    // Add to batch
-                    DocumentReference docRef = firestore.collection(collectionName).document();
+                    // Add to batch in subcollection: whatsapp/{userId}/conversations/{conversationId}
+                    DocumentReference docRef = firestore.collection(collectionName)
+                        .document(userId)
+                        .collection("conversations")
+                        .document();
                     batch.set(docRef, data);
                 }
                 
@@ -168,7 +178,7 @@ public class FirebaseService {
                         @Override
                         public void onComplete(Task<Void> task) {
                             if (task.isSuccessful()) {
-                                Log.d(TAG, "Batch write completed successfully for " + conversations.length + " conversations");
+                                Log.d(TAG, "Batch write completed successfully for " + conversations.length + " conversations in subcollection");
                             } else {
                                 Log.e(TAG, "Batch write failed", task.getException());
                             }
@@ -217,23 +227,30 @@ public class FirebaseService {
                 data.put("createdAt", System.currentTimeMillis());
                 data.put("deviceId", getDeviceId());
                 data.put("appVersion", getAppVersion());
+                data.put("userId", authService.getCurrentUserId());
+                data.put("userEmail", authService.getCurrentUser() != null ? 
+                    authService.getCurrentUser().getEmail() : "unknown");
                 
                 // Get collection name from config
                 String collectionName = getCollectionName();
+                String userId = authService.getCurrentUserId();
                 
+                // Store in subcollection: whatsapp/{userId}/conversations/{documentId}
                 firestore.collection(collectionName)
+                    .document(userId)
+                    .collection("conversations")
                     .document(documentId)
                     .set(data)
                     .addOnSuccessListener(new OnSuccessListener<Void>() {
                         @Override
                         public void onSuccess(Void aVoid) {
-                            Log.d(TAG, "Conversation stored successfully with custom ID: " + documentId);
+                            Log.d(TAG, "Conversation stored successfully in subcollection with custom ID: " + documentId);
                         }
                     })
                     .addOnFailureListener(new OnFailureListener() {
                         @Override
                         public void onFailure(Exception e) {
-                            Log.e(TAG, "Error storing conversation with custom ID: " + documentId, e);
+                            Log.e(TAG, "Error storing conversation in subcollection with custom ID: " + documentId, e);
                         }
                     });
                     

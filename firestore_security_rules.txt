@@ -5,31 +5,48 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // WhatsApp collection - only authenticated users can access data
-    match /whatsapp/{document} {
-      // Allow read and write only if user is authenticated
-      allow read, write: if request.auth != null;
+    // WhatsApp collection with user subcollections - only authenticated users can access their own data
+    match /whatsapp/{userId} {
+      // Allow read and write only if user is authenticated and accessing their own data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
       
-      // Allow create only if user is authenticated
-      allow create: if request.auth != null;
+      // Allow create only if user is authenticated and creating their own document
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Conversations subcollection - only the user can access their own conversations
+      match /conversations/{conversationId} {
+        // Allow read and write only if user is authenticated and accessing their own conversations
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        
+        // Allow create only if user is authenticated and creating their own conversation
+        allow create: if request.auth != null && request.auth.uid == userId;
+      }
     }
     
     // Alternative: More restrictive rules for production
     // Uncomment these rules for stricter security
     
     /*
-    match /whatsapp/{document} {
-      // Only allow authenticated users to read data
-      allow read: if request.auth != null 
-        && request.time < resource.data.createdAt + duration.value(30, 'd'); // 30-day retention
+    match /whatsapp/{userId} {
+      // Only allow authenticated users to access their own data
+      allow read, write: if request.auth != null && request.auth.uid == userId;
       
-      // Only allow authenticated users to create documents
-      allow create: if request.auth != null 
-        && request.resource.data.keys().hasAll(['timestamp', 'createdAt'])
-        && request.resource.data.createdAt is number;
-      
-      // No updates or deletes allowed (immutable data)
-      allow update, delete: if false;
+      // Conversations subcollection with stricter rules
+      match /conversations/{conversationId} {
+        // Only allow authenticated users to read their own conversations with retention policy
+        allow read: if request.auth != null 
+          && request.auth.uid == userId
+          && request.time < resource.data.createdAt + duration.value(30, 'd'); // 30-day retention
+        
+        // Only allow authenticated users to create their own conversations
+        allow create: if request.auth != null 
+          && request.auth.uid == userId
+          && request.resource.data.keys().hasAll(['timestamp', 'createdAt'])
+          && request.resource.data.createdAt is number;
+        
+        // No updates or deletes allowed (immutable data)
+        allow update, delete: if false;
+      }
     }
     */
     

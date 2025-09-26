@@ -48,7 +48,32 @@ Configuration is hardcoded in `app/src/main/res/values/config.xml`:
 ```xml
 <string name="target_package">com.whatsapp</string>
 <string name="log_tag">WhatsAppSentinel</string>
+<string name="firebase_collection_name">whatsapp</string>
+<string name="firebase_auth_email">your-email@example.com</string>
+<string name="firebase_auth_password">your-password</string>
+<bool name="firebase_auth_enabled">true</bool>
 ```
+
+## 🔥 Firebase Integration
+
+The app includes Firebase Firestore integration for storing conversation data:
+
+### Data Structure
+Conversations are stored in Firestore using a subcollection structure:
+- **Path**: `whatsapp/{userId}/conversations/{conversationId}`
+- **Security**: Each user can only access their own conversations
+- **Authentication**: Required for all Firebase operations
+
+### Setup
+1. Add your `google-services.json` to `app/` directory
+2. Configure Firebase credentials in `config.xml`
+3. Deploy Firestore security rules from `firestore_security_rules.txt`
+
+### Features
+- **Automatic Storage**: Conversations are automatically stored in Firestore
+- **User Isolation**: Each user's data is stored separately
+- **Batch Operations**: Efficient batch writes for multiple conversations
+- **Error Handling**: Graceful fallback if Firebase is unavailable
 
 ## 🏗️ Architecture
 
@@ -129,7 +154,9 @@ app/
 ├── src/main/
 │   ├── java/com/sentinel/
 │   │   ├── service/
-│   │   │   └── WhatsAppMonitoringService.java    # Main accessibility service
+│   │   │   ├── WhatsAppMonitoringService.java    # Main accessibility service
+│   │   │   ├── FirebaseService.java              # Firebase Firestore integration
+│   │   │   └── FirebaseAuthService.java          # Firebase authentication
 │   │   ├── config/
 │   │   │   └── ServiceConfig.java                # Configuration management
 │   │   ├── utils/
@@ -163,6 +190,8 @@ app/
 ### Dependencies
 - AndroidX Core
 - Material Design Components
+- Firebase Firestore
+- Firebase Auth
 - Jackson JSON Processing
 - Gson JSON Processing
 - Timber Logging
@@ -173,10 +202,12 @@ app/
 ## 🔒 Privacy & Security
 
 - **Local Processing**: All data processing happens on device
-- **No Network Access**: No data transmitted to external servers
-- **No Persistent Storage**: Data only logged to system logcat
+- **Secure Cloud Storage**: Data stored in Firebase Firestore with user authentication
+- **User Isolation**: Each user can only access their own conversation data
+- **Encrypted Transmission**: All Firebase communications use HTTPS/TLS
 - **Permission-Based**: Requires explicit user consent for accessibility access
 - **No UI**: Reduces attack surface and complexity
+- **Configurable**: Firebase integration can be disabled via configuration
 
 ## 📊 Performance
 

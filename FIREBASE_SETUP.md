@@ -81,10 +81,15 @@ service cloud.firestore {
 
 The conversation data will be stored in Firestore with the following structure:
 
-### Collection: `whatsapp`
+### Collection: `whatsapp/{userId}/conversations/{conversationId}`
 
-Each document contains:
+Each conversation document is stored in a subcollection under the user's document:
 
+**Path Structure:**
+- `whatsapp/{userId}` - User document (contains user metadata)
+- `whatsapp/{userId}/conversations/{conversationId}` - Individual conversation documents
+
+**Individual Conversation Document:**
 ```json
 {
   "timestamp": "15/12/2024 14:30",
@@ -93,12 +98,13 @@ Each document contains:
   "conversationType": "individual",
   "createdAt": 1702642200000,
   "deviceId": "device_android_id",
-  "appVersion": "1.0"
+  "appVersion": "1.0",
+  "userId": "user_firebase_uid",
+  "userEmail": "user@example.com"
 }
 ```
 
-### For Group Conversations:
-
+**Group Conversation Document:**
 ```json
 {
   "timestamp": "15/12/2024 14:30",
@@ -108,7 +114,9 @@ Each document contains:
   "conversationType": "group",
   "createdAt": 1702642200000,
   "deviceId": "device_android_id",
-  "appVersion": "1.0"
+  "appVersion": "1.0",
+  "userId": "user_firebase_uid",
+  "userEmail": "user@example.com"
 }
 ```
 
@@ -137,7 +145,8 @@ Each document contains:
 
 ### Data Not Appearing in Firestore
 - Check Firestore security rules
-- Verify the collection name is "whatsapp"
+- Verify the collection name is "whatsapp" and subcollection is "conversations"
+- Ensure user is authenticated (userId is required for subcollection path)
 - Check Android logs for Firebase errors
 
 ### Build Errors
