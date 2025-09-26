@@ -5,4 +5,15 @@
     
     <!-- Logging Configuration -->
     <string name="log_tag">WhatsAppSentinel</string>
+    
+    <!-- Firebase Authentication Configuration -->
+    <string name="firebase_auth_email">jmfrancofraiz@gmail.com</string>
+    <string name="firebase_auth_password">dfaf@|3123sfasf|@#||||</string>
+    
+    <!-- Firebase Collection Configuration -->
+    <string name="firebase_collection_name">whatsapp</string>
+    
+    <!-- Security Configuration -->
+    <bool name="firebase_auth_enabled">true</bool>
+    <bool name="firebase_auto_retry_auth">true</bool>
 </resources>

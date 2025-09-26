@@ -8,8 +8,9 @@
     <!-- System Alert Window Permission (for debugging) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     
-    <!-- Internet Permission (for model updates if needed) -->
+    <!-- Internet Permission (for Firebase and model updates) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
     <!-- Wake Lock Permission (for background processing) -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />

