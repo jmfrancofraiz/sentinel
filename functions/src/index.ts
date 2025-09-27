@@ -81,7 +81,8 @@ export const monitorInteractions = functions.firestore
           whitelist,
           timestamp: new Date().toISOString(),
           conversationType: interactionData.conversationType || 'unknown',
-          group: interactionData.group || null
+          group: interactionData.group || null,
+          sample: interactionData.sample || []
         });
         
         // Optional: Store the alert in the user's security_alerts subcollection
@@ -95,6 +96,7 @@ export const monitorInteractions = functions.firestore
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
           conversationType: interactionData.conversationType || 'unknown',
           group: interactionData.group || null,
+          sample: interactionData.sample || [],
           alertType: 'non_whitelisted_participants'
         });
         
