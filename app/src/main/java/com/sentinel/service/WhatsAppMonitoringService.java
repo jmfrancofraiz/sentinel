@@ -266,10 +266,10 @@ public class WhatsAppMonitoringService extends AccessibilityService {
                 
                 // Store in Firebase if Firebase service is available
                 if (firebaseService != null && firebaseService.isReady()) {
-                    firebaseService.storeConversation(result);
-                    Log.d(TAG, "Conversation data sent to Firebase Firestore");
+                    firebaseService.storeInteraction(result);
+                    Log.d(TAG, "Interaction data sent to Firebase Firestore");
                 } else {
-                    Log.w(TAG, "Firebase service not ready, conversation data not stored in Firestore");
+                    Log.w(TAG, "Firebase service not ready, Interaction data not stored in Firestore");
                 }
                 
             } finally {

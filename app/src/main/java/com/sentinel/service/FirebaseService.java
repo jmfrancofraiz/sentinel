@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Firebase Firestore service for storing WhatsApp conversation data.
+ * Firebase Firestore service for storing WhatsApp interaction data.
  * This service handles all Firestore operations including document creation,
  * batch writes, and error handling.
  */
@@ -57,12 +57,12 @@ public class FirebaseService {
     }
     
     /**
-     * Store a single conversation document in Firestore
-     * @param conversationData JSON object containing conversation data
+     * Store a single interaction document in Firestore
+     * @param interactionData JSON object containing interaction data
      */
-    public void storeConversation(JSONObject conversationData) {
+    public void storeInteraction(JSONObject interactionData) {
         if (!isInitialized || firestore == null) {
-            Log.e(TAG, "Firebase not initialized, cannot store conversation");
+            Log.e(TAG, "Firebase not initialized, cannot store interaction");
             return;
         }
         
@@ -73,7 +73,7 @@ public class FirebaseService {
             
             // If still not authenticated after attempt, skip storing
             if (!authService.isAuthenticated()) {
-                Log.e(TAG, "Authentication failed, cannot store conversation");
+                Log.e(TAG, "Authentication failed, cannot store interaction");
                 return;
             }
         }
@@ -81,7 +81,7 @@ public class FirebaseService {
         executorService.execute(() -> {
             try {
                 // Convert JSON to Map for Firestore
-                Map<String, Object> data = jsonToMap(conversationData);
+                Map<String, Object> data = jsonToMap(interactionData);
                 
                 // Add metadata
                 data.put("createdAt", System.currentTimeMillis());
@@ -91,46 +91,42 @@ public class FirebaseService {
                 data.put("userEmail", authService.getCurrentUser() != null ? 
                     authService.getCurrentUser().getEmail() : "unknown");
                 
-                // Get collection name from config
-                String collectionName = getCollectionName();
-                String userId = authService.getCurrentUserId();
+                // Get the appropriate document reference based on interaction type
+                DocumentReference docRef = getInteractionDocumentReference(data, null);
                 
-                // Store in Firestore subcollection: whatsapp/{userId}/conversations/{conversationId}
-                firestore.collection(collectionName)
-                    .document(userId)
-                    .collection("conversations")
-                    .add(data)
-                    .addOnSuccessListener(new OnSuccessListener<DocumentReference>() {
+                // Store in Firestore: whatsapp/{userId}/conversations/{participant|group}/interactions/{conversationId}
+                docRef.set(data)
+                    .addOnSuccessListener(new OnSuccessListener<Void>() {
                         @Override
-                        public void onSuccess(DocumentReference documentReference) {
-                            Log.d(TAG, "Conversation stored successfully in subcollection with ID: " + documentReference.getId());
+                        public void onSuccess(Void aVoid) {
+                            Log.d(TAG, "Interaction stored successfully at: " + docRef.getPath());
                         }
                     })
                     .addOnFailureListener(new OnFailureListener() {
                         @Override
                         public void onFailure(Exception e) {
-                            Log.e(TAG, "Error storing conversation in subcollection", e);
+                            Log.e(TAG, "Error storing interaction", e);
                         }
                     });
                     
             } catch (Exception e) {
-                Log.e(TAG, "Error processing conversation data", e);
+                Log.e(TAG, "Error processing interaction data", e);
             }
         });
     }
     
     /**
-     * Store multiple conversations in a batch write
-     * @param conversations Array of JSON objects containing conversation data
+     * Store multiple interactions in a batch write
+     * @param interactions Array of JSON objects containing interaction data
      */
-    public void storeConversationsBatch(JSONObject[] conversations) {
+    public void storeInteractionsBatch(JSONObject[] interactions) {
         if (!isInitialized || firestore == null) {
-            Log.e(TAG, "Firebase not initialized, cannot store conversations");
+            Log.e(TAG, "Firebase not initialized, cannot store interactions");
             return;
         }
         
-        if (conversations == null || conversations.length == 0) {
-            Log.w(TAG, "No conversations to store");
+        if (interactions == null || interactions.length == 0) {
+            Log.w(TAG, "No interactions to store");
             return;
         }
         
@@ -141,7 +137,7 @@ public class FirebaseService {
             
             // If still not authenticated after attempt, skip storing
             if (!authService.isAuthenticated()) {
-                Log.e(TAG, "Authentication failed, cannot store conversations");
+                Log.e(TAG, "Authentication failed, cannot store interactions");
                 return;
             }
         }
@@ -150,25 +146,19 @@ public class FirebaseService {
             try {
                 WriteBatch batch = firestore.batch();
                 
-                String collectionName = getCollectionName();
-                String userId = authService.getCurrentUserId();
-                
-                for (JSONObject conversationData : conversations) {
-                    Map<String, Object> data = jsonToMap(conversationData);
+                for (JSONObject interactionData : interactions) {
+                    Map<String, Object> data = jsonToMap(interactionData);
                     
                     // Add metadata
                     data.put("createdAt", System.currentTimeMillis());
                     data.put("deviceId", getDeviceId());
                     data.put("appVersion", getAppVersion());
-                    data.put("userId", userId);
+                    data.put("userId", authService.getCurrentUserId());
                     data.put("userEmail", authService.getCurrentUser() != null ? 
                         authService.getCurrentUser().getEmail() : "unknown");
                     
-                    // Add to batch in subcollection: whatsapp/{userId}/conversations/{conversationId}
-                    DocumentReference docRef = firestore.collection(collectionName)
-                        .document(userId)
-                        .collection("conversations")
-                        .document();
+                    // Get the appropriate document reference based on interaction type
+                    DocumentReference docRef = getInteractionDocumentReference(data, null);
                     batch.set(docRef, data);
                 }
                 
@@ -178,7 +168,7 @@ public class FirebaseService {
                         @Override
                         public void onComplete(Task<Void> task) {
                             if (task.isSuccessful()) {
-                                Log.d(TAG, "Batch write completed successfully for " + conversations.length + " conversations in subcollection");
+                                Log.d(TAG, "Batch write completed successfully for " + interactions.length + " interactions");
                             } else {
                                 Log.e(TAG, "Batch write failed", task.getException());
                             }
@@ -186,19 +176,19 @@ public class FirebaseService {
                     });
                     
             } catch (Exception e) {
-                Log.e(TAG, "Error processing batch conversations", e);
+                Log.e(TAG, "Error processing batch interactions", e);
             }
         });
     }
     
     /**
-     * Store conversation with custom document ID
+     * Store interaction with custom document ID
      * @param documentId Custom document ID
-     * @param conversationData JSON object containing conversation data
+     * @param interactionData JSON object containing interaction data
      */
-    public void storeConversationWithId(String documentId, JSONObject conversationData) {
+    public void storeInteractionWithId(String documentId, JSONObject interactionData) {
         if (!isInitialized || firestore == null) {
-            Log.e(TAG, "Firebase not initialized, cannot store conversation");
+            Log.e(TAG, "Firebase not initialized, cannot store interaction");
             return;
         }
         
@@ -214,14 +204,14 @@ public class FirebaseService {
             
             // If still not authenticated after attempt, skip storing
             if (!authService.isAuthenticated()) {
-                Log.e(TAG, "Authentication failed, cannot store conversation");
+                Log.e(TAG, "Authentication failed, cannot store interaction");
                 return;
             }
         }
         
         executorService.execute(() -> {
             try {
-                Map<String, Object> data = jsonToMap(conversationData);
+                Map<String, Object> data = jsonToMap(interactionData);
                 
                 // Add metadata
                 data.put("createdAt", System.currentTimeMillis());
@@ -231,31 +221,26 @@ public class FirebaseService {
                 data.put("userEmail", authService.getCurrentUser() != null ? 
                     authService.getCurrentUser().getEmail() : "unknown");
                 
-                // Get collection name from config
-                String collectionName = getCollectionName();
-                String userId = authService.getCurrentUserId();
+                // Get the appropriate document reference based on interaction type with custom ID
+                DocumentReference docRef = getInteractionDocumentReference(data, documentId);
                 
-                // Store in subcollection: whatsapp/{userId}/conversations/{documentId}
-                firestore.collection(collectionName)
-                    .document(userId)
-                    .collection("conversations")
-                    .document(documentId)
-                    .set(data)
+                // Store in Firestore: whatsapp/{userId}/conversations/{participant|group}/interactions/{conversationId}
+                docRef.set(data)
                     .addOnSuccessListener(new OnSuccessListener<Void>() {
                         @Override
                         public void onSuccess(Void aVoid) {
-                            Log.d(TAG, "Conversation stored successfully in subcollection with custom ID: " + documentId);
+                            Log.d(TAG, "Interaction stored successfully with custom ID at: " + docRef.getPath());
                         }
                     })
                     .addOnFailureListener(new OnFailureListener() {
                         @Override
                         public void onFailure(Exception e) {
-                            Log.e(TAG, "Error storing conversation in subcollection with custom ID: " + documentId, e);
+                            Log.e(TAG, "Error storing interaction with custom ID: " + documentId, e);
                         }
                     });
                     
             } catch (Exception e) {
-                Log.e(TAG, "Error processing conversation data with custom ID", e);
+                Log.e(TAG, "Error processing interaction data with custom ID", e);
             }
         });
     }
@@ -363,6 +348,96 @@ public class FirebaseService {
             Log.w(TAG, "Error getting collection name from config, using default", e);
             return COLLECTION_NAME;
         }
+    }
+    
+    /**
+     * Get the appropriate Firestore path based on conversation type
+     * @param interactionData The interaction data containing type and participant/group info
+     * @param customInteractionId Custom interaction ID to use (if null, generates timestamp-based ID)
+     * @return The appropriate DocumentReference for the interaction
+     */
+    private DocumentReference getInteractionDocumentReference(Map<String, Object> interactionData, String customInteractionId) {
+        String collectionName = getCollectionName();
+        String userId = authService.getCurrentUserId();
+        
+        // Get conversation type
+        String conversationType = (String) interactionData.get("conversationType");
+        if (conversationType == null) {
+            conversationType = "individual"; // Default to individual if not specified
+        }
+        
+        // Use custom ID or generate timestamp-based ID
+        String interactionId = (customInteractionId != null && !customInteractionId.trim().isEmpty()) 
+            ? customInteractionId 
+            : String.valueOf(System.currentTimeMillis());
+        
+        if ("individual".equals(conversationType)) {
+            // Individual conversation: whatsapp/{userId}/conversations/{participant}/interactions/{interactionId}
+            String participant = (String) interactionData.get("participants");
+            if (participant == null || participant.trim().isEmpty()) {
+                participant = "unknown_participant";
+            }
+            // Sanitize participant name for Firestore document ID
+            participant = sanitizeDocumentId(participant);
+            
+            return firestore.collection(collectionName)
+                .document(userId)
+                .collection("conversations")
+                .document(participant)
+                .collection("interactions")
+                .document(interactionId);
+        } else {
+            // Group conversation: whatsapp/{userId}/conversations/{group}/interactions/{interactionId}
+            String group = (String) interactionData.get("group");
+            if (group == null || group.trim().isEmpty()) {
+                group = "unknown_group";
+            }
+            // Sanitize group name for Firestore document ID
+            group = sanitizeDocumentId(group);
+            
+            return firestore.collection(collectionName)
+                .document(userId)
+                .collection("conversations")
+                .document(group)
+                .collection("interactions")
+                .document(interactionId);
+        }
+    }
+    
+    /**
+     * Sanitize string for use as Firestore document ID
+     * @param input The input string to sanitize
+     * @return Sanitized string safe for use as document ID
+     */
+    private String sanitizeDocumentId(String input) {
+        if (input == null) {
+            return "unknown";
+        }
+        
+        // Remove emojis and other Unicode symbols
+        String sanitized = input.replaceAll("[\\p{So}\\p{Cn}\\p{Co}\\p{Cs}]", "")
+                               // Replace invalid characters with underscores
+                               // Firestore document IDs cannot contain: / \ ? # [ ] and cannot start with __
+                               .replaceAll("[/\\\\?#\\[\\]]", "_")
+                               .replaceAll("\\s+", "_")
+                               .trim();
+        
+        // Ensure it doesn't start with __
+        if (sanitized.startsWith("__")) {
+            sanitized = "conversation_" + sanitized;
+        }
+        
+        // Ensure it's not empty
+        if (sanitized.isEmpty()) {
+            sanitized = "unknown";
+        }
+        
+        // Limit length to avoid issues
+        if (sanitized.length() > 100) {
+            sanitized = sanitized.substring(0, 100);
+        }
+        
+        return sanitized;
     }
     
     /**
