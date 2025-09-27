@@ -1,10 +1,24 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { TelegramService } from './TelegramService';
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 
 const db = admin.firestore();
+
+// Initialize Telegram service
+const TELEGRAM_BOT_TOKEN = functions.config().telegram?.bot_token || process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = functions.config().telegram?.chat_id || process.env.TELEGRAM_CHAT_ID;
+
+let telegramService: TelegramService | null = null;
+
+if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
+  telegramService = new TelegramService(TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID);
+  console.log('Telegram service initialized successfully');
+} else {
+  console.warn('Telegram bot token or chat ID not configured. Telegram alerts will be disabled.');
+}
 
 /**
  * Cloud Function that monitors interactions and checks participants against whitelist
@@ -85,7 +99,7 @@ export const monitorInteractions = functions.firestore
           sample: interactionData.sample || []
         });
         
-        // Optional: Store the alert in the user's security_alerts subcollection
+        // Store the alert in the user's security_alerts subcollection
         await db.collection('whatsapp').doc(userId).collection('security_alerts').add({
           interactionId,
           userId,
@@ -99,6 +113,34 @@ export const monitorInteractions = functions.firestore
           sample: interactionData.sample || [],
           alertType: 'non_whitelisted_participants'
         });
+        
+        // Send Telegram alert if service is available
+        if (telegramService) {
+          try {
+            const alertData = {
+              interactionId,
+              userId,
+              participant,
+              nonWhitelistedParticipants,
+              allParticipants: participantList,
+              conversationType: interactionData.conversationType || 'unknown',
+              group: interactionData.group || null,
+              sample: interactionData.sample || [],
+              timestamp: new Date().toISOString()
+            };
+            
+            const telegramSuccess = await telegramService.sendSecurityAlert(alertData);
+            if (telegramSuccess) {
+              console.log('Telegram alert sent successfully');
+            } else {
+              console.error('Failed to send Telegram alert');
+            }
+          } catch (error) {
+            console.error('Error sending Telegram alert:', error);
+          }
+        } else {
+          console.warn('Telegram service not available - alert not sent to Telegram');
+        }
         
       } else {
         console.log(`✅ Interaction ${interactionId} participants are all whitelisted:`, {
@@ -114,4 +156,35 @@ export const monitorInteractions = functions.firestore
       console.error(`Error monitoring interaction ${interactionId}:`, error);
     }
   });
+
+/**
+ * Test function to verify Telegram bot connectivity
+ * Call this function to test if the bot is working correctly
+ */
+export const testTelegramBot = functions.https.onCall(async (data, context) => {
+  // Check if user is authenticated (optional)
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
+  }
+
+  if (!telegramService) {
+    throw new functions.https.HttpsError('failed-precondition', 'Telegram service not configured');
+  }
+
+  try {
+    const success = await telegramService.sendTestMessage();
+    
+    if (success) {
+      return {
+        success: true,
+        message: 'Telegram bot test message sent successfully'
+      };
+    } else {
+      throw new functions.https.HttpsError('internal', 'Failed to send test message');
+    }
+  } catch (error) {
+    console.error('Error testing Telegram bot:', error);
+    throw new functions.https.HttpsError('internal', 'Error testing Telegram bot: ' + error);
+  }
+});
 
