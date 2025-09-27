@@ -33,6 +33,15 @@ service cloud.firestore {
           }
         }
       }
+      
+      // Security alerts collection - only the user can access their own alerts
+      match /security_alerts/{alertId} {
+        // Allow read and write only if user is authenticated and accessing their own alerts
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        
+        // Allow create only if user is authenticated and creating their own alert
+        allow create: if request.auth != null && request.auth.uid == userId;
+      }
     }
     
     // Alternative: More restrictive rules for production
@@ -70,6 +79,23 @@ service cloud.firestore {
             allow update, delete: if false;
           }
         }
+      }
+      
+      // Security alerts collection with stricter rules
+      match /security_alerts/{alertId} {
+        // Only allow authenticated users to read their own alerts with retention policy
+        allow read: if request.auth != null 
+          && request.auth.uid == userId
+          && request.time < resource.data.timestamp + duration.value(90, 'd'); // 90-day retention for alerts
+        
+        // Only allow authenticated users to create their own alerts
+        allow create: if request.auth != null 
+          && request.auth.uid == userId
+          && request.resource.data.keys().hasAll(['interactionId', 'userId', 'timestamp'])
+          && request.resource.data.timestamp is timestamp;
+        
+        // No updates or deletes allowed (immutable data)
+        allow update, delete: if false;
       }
     }
     */

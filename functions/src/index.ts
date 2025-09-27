@@ -7,19 +7,19 @@ admin.initializeApp();
 const db = admin.firestore();
 
 /**
- * Cloud Function that monitors conversations and checks participants against whitelist
- * Triggers on any write operation to the conversations subcollection
+ * Cloud Function that monitors interactions and checks participants against whitelist
+ * Triggers on any write operation to the interactions subcollection
  */
-export const monitorConversations = functions.firestore
-  .document('whatsapp/{userId}/conversations/{conversationId}')
+export const monitorInteractions = functions.firestore
+  .document('whatsapp/{userId}/conversations/{participant}/interactions/{interactionId}')
   .onWrite(async (change, context) => {
-    const { userId, conversationId } = context.params;
+    const { userId, participant, interactionId } = context.params;
     
-    // Get the conversation data
-    const conversationData = change.after.exists ? change.after.data() : null;
+    // Get the interaction data
+    const interactionData = change.after.exists ? change.after.data() : null;
     
-    if (!conversationData) {
-      console.log(`Conversation ${conversationId} was deleted, skipping whitelist check`);
+    if (!interactionData) {
+      console.log(`Interaction ${interactionId} was deleted, skipping whitelist check`);
       return;
     }
     
@@ -33,78 +33,83 @@ export const monitorConversations = functions.firestore
       }
       
       const userData = userDoc.data();
-      const whitelist = userData?.whitelist || [];
+      const whitelist: string[] = userData?.whitelist || [];
       
-      // Get participants from the conversation
-      const participants = conversationData.participants;
+      // Get participants from the interaction
+      const participants = interactionData.participants;
       
       if (!participants) {
-        console.log(`No participants field found in conversation ${conversationId}`);
+        console.log(`No participants field found in interaction ${interactionId}`);
         return;
       }
       
-      // Parse participants (can be single name or comma-separated names)
-      const participantList = participants
-        .split(',')
-        .map((name: string) => name.trim())
-        .filter((name: string) => name.length > 0);
-      
-      // Normalize whitelist for comparison (trim and convert to lowercase)
-      const normalizedWhitelist = whitelist
-        .map((name: any) => String(name).trim().toLowerCase())
-        .filter((name: string) => name.length > 0);
+       // Parse participants (can be single name or comma-separated names)
+       const participantList: string[] = [];      
+       const normalizedParticipantList: string[] = participants
+         .split(',')
+         .map((name: string) => {
+           participantList.push(name);
+           // Remove invisible Unicode characters and normalize
+           return name.replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '').trim().toLowerCase();
+         }).filter((name: string) => name.length > 0);
+       
+       // Normalize whitelist for comparison (remove invisible characters, trim and convert to lowercase)
+       const normalizedWhitelist = whitelist
+         .map((name: any) => String(name).replace(/[\u200B-\u200D\uFEFF\u200E\u200F]/g, '').trim().toLowerCase())
+         .filter((name: string) => name.length > 0);
       
       // Debug logging
-      console.log(`Debug - Original whitelist:`, whitelist);
       console.log(`Debug - Normalized whitelist:`, normalizedWhitelist);
-      console.log(`Debug - Participants:`, participantList);
+      console.log(`Debug - Normalized Participants:`, normalizedParticipantList);
       
       // Check if any participant is not in the whitelist (case-insensitive comparison)
-      const nonWhitelistedParticipants = participantList.filter((participant: string) => {
-        const normalizedParticipant = participant.trim().toLowerCase();
-        const isWhitelisted = normalizedWhitelist.includes(normalizedParticipant);
-        console.log(`Debug - Participant "${participant}" (normalized: "${normalizedParticipant}") is whitelisted: ${isWhitelisted}`);
+      const nonWhitelistedParticipants = normalizedParticipantList.filter((participant: string) => {
+        const isWhitelisted = normalizedWhitelist.includes(participant);
+        console.log(`Debug - Normalized participant "${participant}" is whitelisted: ${isWhitelisted}`);
         return !isWhitelisted;
       });
       
       console.log(`Debug - Non-whitelisted participants:`, nonWhitelistedParticipants);
       
       if (nonWhitelistedParticipants.length > 0) {
-        console.log(`🚨 ALERT: Conversation ${conversationId} contains non-whitelisted participants:`, {
-          conversationId,
+        console.log(`🚨 ALERT: Interaction ${interactionId} contains non-whitelisted participants:`, {
+          interactionId,
           userId,
+          participant,
           nonWhitelistedParticipants,
           allParticipants: participantList,
           whitelist,
           timestamp: new Date().toISOString(),
-          conversationType: conversationData.conversationType || 'unknown',
-          group: conversationData.group || null
+          conversationType: interactionData.conversationType || 'unknown',
+          group: interactionData.group || null
         });
         
-        // Optional: Store the alert in a separate collection for tracking
-        await db.collection('security_alerts').add({
-          conversationId,
+        // Optional: Store the alert in the user's security_alerts subcollection
+        await db.collection('whatsapp').doc(userId).collection('security_alerts').add({
+          interactionId,
           userId,
+          participant,
           nonWhitelistedParticipants,
           allParticipants: participantList,
           whitelist,
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          conversationType: conversationData.conversationType || 'unknown',
-          group: conversationData.group || null,
+          conversationType: interactionData.conversationType || 'unknown',
+          group: interactionData.group || null,
           alertType: 'non_whitelisted_participants'
         });
         
       } else {
-        console.log(`✅ Conversation ${conversationId} participants are all whitelisted:`, {
-          conversationId,
+        console.log(`✅ Interaction ${interactionId} participants are all whitelisted:`, {
+          interactionId,
           userId,
+          participant,
           participants: participantList,
           timestamp: new Date().toISOString()
         });
       }
       
     } catch (error) {
-      console.error(`Error monitoring conversation ${conversationId}:`, error);
+      console.error(`Error monitoring interaction ${interactionId}:`, error);
     }
   });
 
