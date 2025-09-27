@@ -45,7 +45,6 @@ export class TelegramService {
    */
   async sendSecurityAlert(alertData: {
     interactionId: string;
-    userId: string;
     participant: string;
     nonWhitelistedParticipants: string[];
     allParticipants: string[];
@@ -65,7 +64,6 @@ export class TelegramService {
    */
   private formatSecurityAlert(alertData: {
     interactionId: string;
-    userId: string;
     participant: string;
     nonWhitelistedParticipants: string[];
     allParticipants: string[];
@@ -76,7 +74,6 @@ export class TelegramService {
   }): string {
     const { 
       interactionId, 
-      userId, 
       participant, 
       nonWhitelistedParticipants, 
       allParticipants, 
@@ -86,47 +83,35 @@ export class TelegramService {
       timestamp 
     } = alertData;
 
-    let message = `🚨 <b>SECURITY ALERT</b> 🚨\n\n`;
+    let message = `🚨 <b>ALERTA DE SEGURIDAD</b> 🚨\n\n`;
     
-    message += `📱 <b>WhatsApp Sentinel Alert</b>\n`;
-    message += `⏰ <b>Time:</b> ${timestamp}\n`;
+    message += `⏰ <b>Hora:</b> ${timestamp}\n`;
     message += `🆔 <b>Interaction ID:</b> ${interactionId}\n`;
-    message += `👤 <b>User ID:</b> ${userId}\n\n`;
+    message += `💬 <b>Detalles de la conversación:</b>\n`;
     
-    message += `💬 <b>Conversation Details:</b>\n`;
-    message += `• <b>Type:</b> ${conversationType}\n`;
-    
-    if (conversationType === 'group' && group) {
-      message += `• <b>Group:</b> ${group}\n`;
+    if (conversationType === 'individual' && participant) {
+      message += `• <b>Contacto:</b> ${participant}\n`;
+    } else {
+      if (conversationType === 'group' && group) {
+        message += `• <b>Grupo:</b> ${group}\n`;
+        message += `• <b>Participantes:</b> ${allParticipants.join(', ')}\n`;
+      } else {
+        message += `• <b>Tipo de conversación:</b> ${conversationType}\n`;
+      }
+      message += `⚠️ <b>Participantes no permitidos:</b>\n`;
+      nonWhitelistedParticipants.forEach(name => {
+        message += `• ${name}\n`;
+      });
     }
-    
-    message += `• <b>Participant:</b> ${participant}\n\n`;
-    
-    message += `⚠️ <b>Non-whitelisted participants:</b>\n`;
-    nonWhitelistedParticipants.forEach(name => {
-      message += `• ${name}\n`;
-    });
-    
-    message += `\n👥 <b>All participants:</b>\n`;
-    allParticipants.forEach(name => {
-      message += `• ${name}\n`;
-    });
     
     if (sample && sample.length > 0) {
-      message += `\n📝 <b>Sample messages:</b>\n`;
-      sample.slice(0, 3).forEach((msg, index) => {
-        const truncatedMsg = typeof msg === 'string' && msg.length > 50 
-          ? msg.substring(0, 50) + '...' 
-          : msg;
-        message += `${index + 1}. ${truncatedMsg}\n`;
+      message += `\n📝 <b>Mensajes de muestra:</b>\n`;
+      sample.forEach((msg) => {
+        message += `• ${msg}\n`;
       });
-      
-      if (sample.length > 3) {
-        message += `... and ${sample.length - 3} more messages\n`;
-      }
     }
     
-    message += `\n🔒 <b>Action Required:</b> Review this interaction and update whitelist if needed.`;
+    message += `\n🔒 <b>Acción requerida:</b> Revisa esta interacción y actualiza la lista blanca si es necesario.`;
     
     return message;
   }

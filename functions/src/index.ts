@@ -27,7 +27,8 @@ if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID) {
 export const monitorInteractions = functions.firestore
   .document('whatsapp/{userId}/conversations/{participant}/interactions/{interactionId}')
   .onWrite(async (change, context) => {
-    const { userId, participant, interactionId } = context.params;
+    const userId = context.params.userId;
+    const interactionId = context.params.interactionId;
     
     // Get the interaction data
     const interactionData = change.after.exists ? change.after.data() : null;
@@ -48,9 +49,10 @@ export const monitorInteractions = functions.firestore
       
       const userData = userDoc.data();
       const whitelist: string[] = userData?.whitelist || [];
+      whitelist.push('Tú','You'); // Add yourself to the whitelist
       
       // Get participants from the interaction
-      const participants = interactionData.participants;
+      const participants: string = interactionData.participants;
       
       if (!participants) {
         console.log(`No participants field found in interaction ${interactionId}`);
@@ -89,7 +91,7 @@ export const monitorInteractions = functions.firestore
         console.log(`🚨 ALERT: Interaction ${interactionId} contains non-whitelisted participants:`, {
           interactionId,
           userId,
-          participant,
+          participants,
           nonWhitelistedParticipants,
           allParticipants: participantList,
           whitelist,
@@ -103,7 +105,7 @@ export const monitorInteractions = functions.firestore
         await db.collection('whatsapp').doc(userId).collection('security_alerts').add({
           interactionId,
           userId,
-          participant,
+          participants,
           nonWhitelistedParticipants,
           allParticipants: participantList,
           whitelist,
@@ -119,8 +121,7 @@ export const monitorInteractions = functions.firestore
           try {
             const alertData = {
               interactionId,
-              userId,
-              participant,
+              participant: participants,
               nonWhitelistedParticipants,
               allParticipants: participantList,
               conversationType: interactionData.conversationType || 'unknown',
@@ -146,7 +147,7 @@ export const monitorInteractions = functions.firestore
         console.log(`✅ Interaction ${interactionId} participants are all whitelisted:`, {
           interactionId,
           userId,
-          participant,
+          participant: participants,
           participants: participantList,
           timestamp: new Date().toISOString()
         });
@@ -157,34 +158,4 @@ export const monitorInteractions = functions.firestore
     }
   });
 
-/**
- * Test function to verify Telegram bot connectivity
- * Call this function to test if the bot is working correctly
- */
-export const testTelegramBot = functions.https.onCall(async (data, context) => {
-  // Check if user is authenticated (optional)
-  if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated');
-  }
-
-  if (!telegramService) {
-    throw new functions.https.HttpsError('failed-precondition', 'Telegram service not configured');
-  }
-
-  try {
-    const success = await telegramService.sendTestMessage();
-    
-    if (success) {
-      return {
-        success: true,
-        message: 'Telegram bot test message sent successfully'
-      };
-    } else {
-      throw new functions.https.HttpsError('internal', 'Failed to send test message');
-    }
-  } catch (error) {
-    console.error('Error testing Telegram bot:', error);
-    throw new functions.https.HttpsError('internal', 'Error testing Telegram bot: ' + error);
-  }
-});
 
