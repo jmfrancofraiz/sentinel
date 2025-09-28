@@ -103,3 +103,6 @@ Desktop.ini
 # Firebase Functions
 functions/lib/
 functions/node_modules/
+
+# Credentials file (contains sensitive information)
+app/src/main/res/values/creds.xml

